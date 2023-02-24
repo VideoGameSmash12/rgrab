@@ -1,4 +1,4 @@
-# - rgrab v1.4 -
+# - rgrab v1.4.1 -
 # Written by videogamesm12
 
 print("                    _    ")
@@ -40,7 +40,7 @@ daemonSettings = {
 #--
 print(" * Setting up internal variables...")
 #--
-pattern = re.compile("^New (WindowsPlayer|Studio|Studio64|Client) (version-[A-Fa-f0-9]{16}) at ([0-9]{1,2}\/[0-9]{2}\/[0-9]{4} [0-9]{1,2}:[0-9]{2}:[0-9]{2} (AM|PM))(, file ver(s)?ion: [0-9], [0-9]{1,}, 0, [0-9]{1,})?(, git hash: ([A-z0-9]{1,} ))?...(Done!)?")
+pattern = re.compile("^New (WindowsPlayer|Studio|Studio64|Client) (version-[A-Fa-f0-9]{16}) at ([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4} [0-9]{1,2}:[0-9]{2}:[0-9]{2} (AM|PM))(, file ver(s)?ion: [0-9], [0-9]{1,}, 0, [0-9]{1,})?(, git hash: ([A-z0-9]{1,} ))?...(Done!)?")
 filePattern = re.compile("^([A-z0-9-]{1,}\.[A-z0-9]{1,})")
 session = requests.Session()
 #--
