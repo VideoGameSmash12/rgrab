@@ -39,13 +39,21 @@ options:
 
 ## Examples
 To grab all Windows clients in the main channel and send the version files to an aria2c daemon on the same computer, you'd simply use this command:
-`python rgrab.py`
+```none
+python rgrab.py
+```
 
 To grab all Windows clients in the znext channel and send the version files to an aria2c daemon on the same computer, you'd use this command:
-`python rgrab.py -c znext`
+```none
+python rgrab.py -c znext
+```
 
 To grab all Mac clients in the main channel and send the files to an aria2c daemon on the same computer, you'd use this command:
-`python rgrab.py -m`
+```none
+python rgrab.py -m
+```
 
 To grab all Windows clients in the main channel and send the version files to an aria2c daemon on another computer with the IP address of 192.168.1.10, you'd use this command:
-`python rgrab.py -ai 192.168.1.10`
+```none
+python rgrab.py -ai 192.168.1.10
+```
