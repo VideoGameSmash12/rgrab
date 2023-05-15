@@ -11,17 +11,23 @@ Linux: `pip install aria2p`
 
 ## Usage
 ```none
-usage: rgrab.py [-h] [-d DOMAIN] [-mn] [-m] [-di] [-ai ARIA2C_IP] [-ap ARIA2C_PORT]
+usage: rgrab.py [-h] [-d DOMAIN] [-c CHANNEL] [-mn] [-m] [-nd] [-di] [-ai ARIA2C_IP]
+                [-ap ARIA2C_PORT]
 
 Scrape Roblox's setup servers for client versions.
 
 options:
   -h, --help            show this help message and exit
   -d DOMAIN, --domain DOMAIN
-                        Sets the the domain that the script will grab versions from.
+                        Sets the domain that the script will grab versions from. Unless you're
+                        scraping something from LouBu, there is no need to set this.
+  -c CHANNEL, --channel CHANNEL
+                        Sets the channel that the script will grab versions from.
   -mn, --manual         Attempts to query additional endpoints other than DeployHistory to find
                         versions.
   -m, --mac             Scrape versions in a way that properly grabs Mac clients.
+  -nd, --no_deploy_history
+                        Disables scraping from DeployHistory.txt.
   -di, --dont_ignore_versions_after_parsed
                         Don't ignore versions found during the parsing process in future sessions.
   -ai ARIA2C_IP, --aria2c_ip ARIA2C_IP

@@ -1,4 +1,4 @@
-# - rgrab v1.5 -
+# - rgrab v1.6 -
 # Written by videogamesm12
 
 print("                    _    ")
@@ -23,22 +23,35 @@ from concurrent.futures import ThreadPoolExecutor
 print(" * Reading command-line arguments (if any)...")
 #--
 parser = argparse.ArgumentParser(description = "Scrape Roblox's setup servers for client versions.")
-parser.add_argument("-d", "--domain", default = "https://setup.rbxcdn.com/", help = "Sets the the domain that the script will grab versions from.")
+parser.add_argument("-d", "--domain", default = "https://setup.rbxcdn.com/", help = "Sets the domain that the script will grab versions from. Unless you're scraping something from LouBu, there is no need to set this.")
+parser.add_argument("-c", "--channel", default = None, help = "Sets the channel that the script will grab versions from.")
 parser.add_argument("-mn", "--manual", action = 'store_true', default = False, help = "Attempts to query additional endpoints other than DeployHistory to find versions.")
 parser.add_argument("-m", "--mac", action = 'store_true', default = False, help = "Scrape versions in a way that properly grabs Mac clients.")
+parser.add_argument("-nd", "--no_deploy_history", action = 'store_true', default = False, help = "Disables scraping from DeployHistory.txt.")
 parser.add_argument("-di", "--dont_ignore_versions_after_parsed", action = 'store_true', default = False, help = "Don't ignore versions found during the parsing process in future sessions.")
 parser.add_argument("-ai", "--aria2c_ip", action = 'store', default = "127.0.0.1", help = "The IP address of the aria2c daemon to connect to.")
 parser.add_argument("-ap", "--aria2c_port", action = 'store', default = 6800, help = "The port of the aria2c daemon to connect to.")
 args = parser.parse_args()
 #--
 domain = args.domain
+channel = args.channel
 mac = args.mac
 ignoreVersions = not args.dont_ignore_versions_after_parsed
+useDeployHistory = not args.no_deploy_history
 daemonSettings = {
 	"ip": args.aria2c_ip,
 	"port": args.aria2c_port
 }
 manual = args.manual
+#--
+print(" * Applying command-line options (if any)...")
+outputFolder = ""
+if channel:
+	domain = f"{domain}channel/{channel}/"
+	outputFolder = f"{channel}/"
+if mac:
+	domain = f"{domain}mac/"
+	outputFolder = f"{outputFolder}mac/"
 #--
 print(" * Setting up internal variables...")
 #--
@@ -98,8 +111,8 @@ class Version:
 		# - Mac clients are stored in one big zip file that is simply downloaded by the installer all in one go.
 		if not mac:
 			print(f" * Sending manifests for version {self.id} to queue")
-			aria2.add(f"{domain}{self.id}-rbxPkgManifest.txt", options = {"out": f"{self.id}/{self.id}-rbxPkgManifest.txt"})
-			aria2.add(f"{domain}{self.id}-rbxManifest.txt", options = {"out": f"{self.id}/{self.id}-rbxManifest.txt"})
+			aria2.add(f"{domain}{self.id}-rbxPkgManifest.txt", options = {"out": f"{outputFolder}{self.id}/{self.id}-rbxPkgManifest.txt"})
+			aria2.add(f"{domain}{self.id}-rbxManifest.txt", options = {"out": f"{outputFolder}{self.id}/{self.id}-rbxManifest.txt"})
 			
 			print(f" * Sending files for version {self.id} to queue")
 			for line in self.manifest.split('\n'):
@@ -107,17 +120,17 @@ class Version:
 				# This is a file, download it
 				if match:
 					print(f" * Sending file {match.group(1)} for version {self.id} to queue")
-					aria2.add(f"{domain}{self.id}-{match.group(1)}", options = {"out": f"{self.id}/{self.id}-{match.group(1)}"})
+					aria2.add(f"{domain}{self.id}-{match.group(1)}", options = {"out": f"{outputFolder}{self.id}/{self.id}-{match.group(1)}"})
 		else:
 			print(f" * Sending files for version {self.id} to queue")
 			if "Studio" in self.type:
 				# Thank you to BRAVONATCHO for letting me know about this file
-				aria2.add(f"{domain}{self.id}-RobloxStudioApp.zip", options = {"out": f"{self.id}/{self.id}-RobloxStudioApp.zip"})
-				aria2.add(f"{domain}{self.id}-RobloxStudio.zip", options = {"out": f"{self.id}/{self.id}-RobloxStudio.zip"})
-				aria2.add(f"{domain}{self.id}-RobloxStudio.dmg", options = {"out": f"{self.id}/{self.id}-RobloxStudio.dmg"})
+				aria2.add(f"{domain}{self.id}-RobloxStudioApp.zip", options = {"out": f"{outputFolder}{self.id}/{self.id}-RobloxStudioApp.zip"})
+				aria2.add(f"{domain}{self.id}-RobloxStudio.zip", options = {"out": f"{outputFolder}{self.id}/{self.id}-RobloxStudio.zip"})
+				aria2.add(f"{domain}{self.id}-RobloxStudio.dmg", options = {"out": f"{outputFolder}{self.id}/{self.id}-RobloxStudio.dmg"})
 			else:
-				aria2.add(f"{domain}{self.id}-Roblox.dmg", options = {"out": f"{self.id}/{self.id}-Roblox.dmg"})
-				aria2.add(f"{domain}{self.id}-RobloxPlayer.zip", options = {"out": f"{self.id}/{self.id}-RobloxPlayer.zip"})
+				aria2.add(f"{domain}{self.id}-Roblox.dmg", options = {"out": f"{outputFolder}{self.id}/{self.id}-Roblox.dmg"})
+				aria2.add(f"{domain}{self.id}-RobloxPlayer.zip", options = {"out": f"{outputFolder}{self.id}/{self.id}-RobloxPlayer.zip"})
 #---------------------------------
 print(" * Setting up internal methods...")
 #--
@@ -131,19 +144,20 @@ def findVersions(domain):
 	print(" STAGE 1 - FINDING VERSIONS")
 	print(" ==========================")
 	#--
-	history = session.get(f"{domain}DeployHistory.txt").text
-	print(f" * Grabbed {domain}DeployHistory.txt, parsing!")
-	
-	for line in history.split('\n'):
-		match = pattern.search(line)
+	if useDeployHistory:
+		history = session.get(f"{domain}DeployHistory.txt").text
+		print(f" * Grabbed {domain}DeployHistory.txt, parsing!")
 		
-		# This is a valid version entry, send it if it isn't blacklisted
-		if match and match.group(2) not in ignore:
-			version = Version(line, match.group(1), match.group(2), match.group(3))
-			versions.append(version)
+		for line in history.split('\n'):
+			match = pattern.search(line)
 			
-			if ignoreVersions:
-				ignore.append(match.group(2))
+			# This is a valid version entry, send it if it isn't blacklisted
+			if match and match.group(2) not in ignore:
+				version = Version(line, match.group(1), match.group(2), match.group(3))
+				versions.append(version)
+				
+				if ignoreVersions:
+					ignore.append(match.group(2))
 	
 	# TODO: Improve this later
 	if manual:
@@ -151,7 +165,7 @@ def findVersions(domain):
 		
 		if mac:
 			studioVersion = session.get(f"{domain}versionStudio").text
-			if "version-" in studioVersion:
+			if "version-" in studioVersion and studioVersion not in ignore:
 				version = Version(studioVersion, "Studio", studioVersion, "Unspecified")
 				versions.append(version)
 				
@@ -159,7 +173,7 @@ def findVersions(domain):
 					ignore.append(studioVersion)
 			
 			playerVersion = session.get(f"{domain}version").text
-			if "version-" in playerVersion:
+			if "version-" in playerVersion and playerVersion not in ignore:
 				version = Version(playerVersion, "Client", playerVersion, "Unspecified")
 				versions.append(version)
 				
@@ -168,7 +182,7 @@ def findVersions(domain):
 			
 		else:
 			studio64Version = session.get(f"{domain}versionQTStudio").text
-			if "version-" in studio64Version:
+			if "version-" in studio64Version and studio64Version not in ignore:
 				version = Version(studio64Version, "Studio64", studio64Version, "Unspecified")
 				versions.append(version)
 				
@@ -176,7 +190,7 @@ def findVersions(domain):
 					ignore.append(studio64Version)
 			
 			playerVersion = session.get(f"{domain}version").text
-			if "version-" in playerVersion:
+			if "version-" in playerVersion and playerVersion not in ignore:
 				version = Version(playerVersion, "WindowsPlayer", playerVersion, "Unspecified")
 				versions.append(version)
 				
