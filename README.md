@@ -35,3 +35,17 @@ options:
   -ap ARIA2C_PORT, --aria2c_port ARIA2C_PORT
                         The port of the aria2c daemon to connect to.
 ```
+
+
+## Examples
+To grab all Windows clients in the main channel and send the version files to an aria2c daemon on the same computer, you'd simply use this command:
+`python rgrab.py`
+
+To grab all Windows clients in the znext channel and send the version files to an aria2c daemon on the same computer, you'd use this command:
+`python rgrab.py -c znext`
+
+To grab all Mac clients in the main channel and send the files to an aria2c daemon on the same computer, you'd use this command:
+`python rgrab.py -m`
+
+To grab all Windows clients in the main channel and send the version files to an aria2c daemon on another computer with the IP address of 192.168.1.10, you'd use this command:
+`python rgrab.py -ai 192.168.1.10`
