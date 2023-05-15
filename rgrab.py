@@ -1,4 +1,4 @@
-# - rgrab v1.4.1 -
+# - rgrab v1.5 -
 # Written by videogamesm12
 
 print("                    _    ")
@@ -24,6 +24,7 @@ print(" * Reading command-line arguments (if any)...")
 #--
 parser = argparse.ArgumentParser(description = "Scrape Roblox's setup servers for client versions.")
 parser.add_argument("-d", "--domain", default = "https://setup.rbxcdn.com/", help = "Sets the the domain that the script will grab versions from.")
+parser.add_argument("-mn", "--manual", action = 'store_true', default = False, help = "Attempts to query additional endpoints other than DeployHistory to find versions.")
 parser.add_argument("-m", "--mac", action = 'store_true', default = False, help = "Scrape versions in a way that properly grabs Mac clients.")
 parser.add_argument("-di", "--dont_ignore_versions_after_parsed", action = 'store_true', default = False, help = "Don't ignore versions found during the parsing process in future sessions.")
 parser.add_argument("-ai", "--aria2c_ip", action = 'store', default = "127.0.0.1", help = "The IP address of the aria2c daemon to connect to.")
@@ -37,6 +38,7 @@ daemonSettings = {
 	"ip": args.aria2c_ip,
 	"port": args.aria2c_port
 }
+manual = args.manual
 #--
 print(" * Setting up internal variables...")
 #--
@@ -125,9 +127,9 @@ def queueIfPresent(version):
 	except Exception as ex:
 		print("FUCK", ex)
 #--
-def grabAndProcessDeployHistory(domain):
-	print(" STAGE 1 - SCRAPING DEPLOYHISTORY")
-	print(" ================================")
+def findVersions(domain):
+	print(" STAGE 1 - FINDING VERSIONS")
+	print(" ==========================")
 	#--
 	history = session.get(f"{domain}DeployHistory.txt").text
 	print(f" * Grabbed {domain}DeployHistory.txt, parsing!")
@@ -142,6 +144,44 @@ def grabAndProcessDeployHistory(domain):
 			
 			if ignoreVersions:
 				ignore.append(match.group(2))
+	
+	# TODO: Improve this later
+	if manual:
+		print(f" * Grabbing the latest version of the game by checking endpoints...")
+		
+		if mac:
+			studioVersion = session.get(f"{domain}versionStudio").text
+			if "version-" in studioVersion:
+				version = Version(studioVersion, "Studio", studioVersion, "Unspecified")
+				versions.append(version)
+				
+				if ignoreVersions:
+					ignore.append(studioVersion)
+			
+			playerVersion = session.get(f"{domain}version").text
+			if "version-" in playerVersion:
+				version = Version(playerVersion, "Client", playerVersion, "Unspecified")
+				versions.append(version)
+				
+				if ignoreVersions:
+					ignore.append(playerVersion)
+			
+		else:
+			studio64Version = session.get(f"{domain}versionQTStudio").text
+			if "version-" in studio64Version:
+				version = Version(studio64Version, "Studio64", studio64Version, "Unspecified")
+				versions.append(version)
+				
+				if ignoreVersions:
+					ignore.append(studio64Version)
+			
+			playerVersion = session.get(f"{domain}version").text
+			if "version-" in playerVersion:
+				version = Version(playerVersion, "WindowsPlayer", playerVersion, "Unspecified")
+				versions.append(version)
+				
+				if ignoreVersions:
+					ignore.append(playerVersion)
 	
 	if ignoreVersions:
 		saveIgnore()
@@ -181,5 +221,5 @@ if os.path.exists("ignore.json"):
 print(" * Done!")
 print("")
 #---------------------------------
-grabAndProcessDeployHistory(domain)
+findVersions(domain)
 queueVersions()
