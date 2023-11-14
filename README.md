@@ -11,20 +11,20 @@ Linux: `pip install aria2p`
 
 ## Usage
 ```none
-usage: rgrab.py [-h] [-d DOMAIN] [-c CHANNEL] [-mn] [-m] [-nd] [-di] [-ai ARIA2C_IP]
-                [-ap ARIA2C_PORT]
+usage: rgrab.py [-h] [-d DOMAIN] [-c CHANNEL] [-mn] [-dhf DEPLOY_HISTORY_FILE] [-m] [-nd] [-di] [-ai ARIA2C_IP] [-ap ARIA2C_PORT]
 
 Scrape Roblox's setup servers for client versions.
 
 options:
   -h, --help            show this help message and exit
   -d DOMAIN, --domain DOMAIN
-                        Sets the domain that the script will grab versions from. Unless you're
-                        scraping something from LouBu, there is no need to set this.
+                        Sets the domain that the script will grab versions from. Unless you're scraping something from LouBu, there is no need to set this.
   -c CHANNEL, --channel CHANNEL
                         Sets the channel that the script will grab versions from.
-  -mn, --manual         Attempts to query additional endpoints other than DeployHistory to find
-                        versions.
+  -mn, --manual         Attempts to query additional endpoints other than DeployHistory to find versions.
+  -dhf DEPLOY_HISTORY_FILE, --deploy_history_file DEPLOY_HISTORY_FILE
+                        If specified, reads the file with the same name as the DeployHistory instead of trying to get the latest one. Useful for getting
+                        clients from channels with previously wiped deploy histories.
   -m, --mac             Scrape versions in a way that properly grabs Mac clients.
   -nd, --no_deploy_history
                         Disables scraping from DeployHistory.txt.
@@ -52,6 +52,12 @@ To grab all Mac clients in the main channel and send the files to an aria2c daem
 ```none
 python rgrab.py -m
 ```
+
+To grab all Windows clients in the zintegration channel using an already downloaded DeployHistory.txt file, you'd use this command:
+```none
+python rgrab.py -c zintegration.txt -dhf DeployHistory.txt
+```
+
 
 To grab all Windows clients in the main channel and send the version files to an aria2c daemon on another computer with the IP address of 192.168.1.10, you'd use this command:
 ```none

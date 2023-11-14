@@ -1,4 +1,4 @@
-# - rgrab v1.6 -
+# - rgrab v1.7 -
 # Written by videogamesm12
 
 print("                    _    ")
@@ -26,6 +26,7 @@ parser = argparse.ArgumentParser(description = "Scrape Roblox's setup servers fo
 parser.add_argument("-d", "--domain", default = "https://setup.rbxcdn.com/", help = "Sets the domain that the script will grab versions from. Unless you're scraping something from LouBu, there is no need to set this.")
 parser.add_argument("-c", "--channel", default = None, help = "Sets the channel that the script will grab versions from.")
 parser.add_argument("-mn", "--manual", action = 'store_true', default = False, help = "Attempts to query additional endpoints other than DeployHistory to find versions.")
+parser.add_argument("-dhf", "--deploy_history_file", action = 'store', default = None, help = "If specified, reads the file with the same name as the DeployHistory instead of trying to get the latest one. Useful for getting clients from channels with previously wiped deploy histories.")
 parser.add_argument("-m", "--mac", action = 'store_true', default = False, help = "Scrape versions in a way that properly grabs Mac clients.")
 parser.add_argument("-nd", "--no_deploy_history", action = 'store_true', default = False, help = "Disables scraping from DeployHistory.txt.")
 parser.add_argument("-di", "--dont_ignore_versions_after_parsed", action = 'store_true', default = False, help = "Don't ignore versions found during the parsing process in future sessions.")
@@ -43,6 +44,7 @@ daemonSettings = {
 	"port": args.aria2c_port
 }
 manual = args.manual
+deployHistoryFile = args.deploy_history_file
 #--
 print(" * Applying command-line options (if any)...")
 outputFolder = ""
@@ -145,10 +147,17 @@ def findVersions(domain):
 	print(" ==========================")
 	#--
 	if useDeployHistory:
-		history = session.get(f"{domain}DeployHistory.txt").text
-		print(f" * Grabbed {domain}DeployHistory.txt, parsing!")
+		# If the file has been specified and it exists, we'll use it as our DeployHistory.txt instead of getting the latest version
+		# This is useful in case you want to get clients from channels with previously wiped DeployHistory.txt files
+		if deployHistoryFile and os.path.exists(deployHistoryFile):
+			print(" * Reading manually specified file as DeployHistory.txt...")
+			history = open(deployHistoryFile, "r").readlines()
+		else:
+			print(f" * Grabbing {domain}DeployHistory.txt from online...")
+			history = session.get(f"{domain}DeployHistory.txt").text.split('\n')
 		
-		for line in history.split('\n'):
+		print(f" * Parsing...")
+		for line in history:
 			match = pattern.search(line)
 			
 			# This is a valid version entry, send it if it isn't blacklisted
