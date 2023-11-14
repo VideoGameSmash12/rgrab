@@ -55,7 +55,7 @@ python rgrab.py -m
 
 To grab all Windows clients in the zintegration channel using an already downloaded DeployHistory.txt file, you'd use this command:
 ```none
-python rgrab.py -c zintegration.txt -dhf DeployHistory.txt
+python rgrab.py -c zintegration -dhf DeployHistory.txt
 ```
 
 
