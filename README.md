@@ -11,7 +11,7 @@ Linux: `pip install aria2p`
 
 ## Usage
 ```none
-usage: rgrab.py [-h] [-d DOMAIN] [-c CHANNEL] [-mn] [-dhf DEPLOY_HISTORY_FILE] [-m] [-nd] [-di] [-ai ARIA2C_IP] [-ap ARIA2C_PORT]
+usage: rgrab.py [-h] [-d DOMAIN] [-c CHANNEL] [-mn] [-dhf DEPLOY_HISTORY_FILE] [-m] [-arm] [-nd] [-di] [-ai ARIA2C_IP] [-ap ARIA2C_PORT]
 
 Scrape Roblox's setup servers for client versions.
 
@@ -23,9 +23,9 @@ options:
                         Sets the channel that the script will grab versions from.
   -mn, --manual         Attempts to query additional endpoints other than DeployHistory to find versions.
   -dhf DEPLOY_HISTORY_FILE, --deploy_history_file DEPLOY_HISTORY_FILE
-                        If specified, reads the file with the same name as the DeployHistory instead of trying to get the latest one. Useful for getting
-                        clients from channels with previously wiped deploy histories.
+                        If specified, reads the file with the same name as the DeployHistory instead of trying to get the latest one. Useful for getting clients from channels with previously wiped deploy histories.
   -m, --mac             Scrape versions in a way that properly grabs Mac clients.
+  -arm, --arm           If Mac clients are being grabbed, only get the clients for the arm64 architecture.
   -nd, --no_deploy_history
                         Disables scraping from DeployHistory.txt.
   -di, --dont_ignore_versions_after_parsed
