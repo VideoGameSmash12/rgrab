@@ -202,8 +202,8 @@ class DeployFinder(Finder):
 			print(" (*) Reading manually specified file as DeployHistory.txt...")
 			history = open(settings.deploy_file, "r").readlines()
 		else:
-			print(f' (*) Grabbing {settings.domain}{f"mac/" if settings.mac else ""}{f"arm64/" if settings.mac_arm64 else ""}{f"channel/{settings.channel}/" if settings.channel else ""}DeployHistory.txt from online...')
-			history = session.get(f'{settings.domain}{f"mac/" if settings.mac else ""}{f"arm64/" if settings.mac_arm64 else ""}{f"channel/{settings.channel}/" if settings.channel else ""}DeployHistory.txt').text.split('\n')
+			print(f' (*) Grabbing {settings.domain}{f"channel/{settings.channel}/" if settings.channel else ""}{f"mac/" if settings.mac else ""}{f"arm64/" if settings.mac_arm64 else ""}DeployHistory.txt from online...')
+			history = session.get(f'{settings.domain}{f"channel/{settings.channel}/" if settings.channel else ""}{f"mac/" if settings.mac else ""}{f"arm64/" if settings.mac_arm64 else ""}DeployHistory.txt').text.split('\n')
 		
 		print(f" (*) Parsing...")
 		for line in history:
