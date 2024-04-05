@@ -1,4 +1,4 @@
-# - rgrab v1.7 -
+# - rgrab v1.8 -
 # Written by videogamesm12
 
 print("                    _    ")
@@ -28,6 +28,7 @@ parser.add_argument("-c", "--channel", default = None, help = "Sets the channel 
 parser.add_argument("-mn", "--manual", action = 'store_true', default = False, help = "Attempts to query additional endpoints other than DeployHistory to find versions.")
 parser.add_argument("-dhf", "--deploy_history_file", action = 'store', default = None, help = "If specified, reads the file with the same name as the DeployHistory instead of trying to get the latest one. Useful for getting clients from channels with previously wiped deploy histories.")
 parser.add_argument("-m", "--mac", action = 'store_true', default = False, help = "Scrape versions in a way that properly grabs Mac clients.")
+parser.add_argument("-arm", "--arm", action = 'store_true', default = False, help = "If Mac clients are being grabbed, only get the clients for the arm64 architecture.")
 parser.add_argument("-nd", "--no_deploy_history", action = 'store_true', default = False, help = "Disables scraping from DeployHistory.txt.")
 parser.add_argument("-di", "--dont_ignore_versions_after_parsed", action = 'store_true', default = False, help = "Don't ignore versions found during the parsing process in future sessions.")
 parser.add_argument("-ai", "--aria2c_ip", action = 'store', default = "127.0.0.1", help = "The IP address of the aria2c daemon to connect to.")
@@ -37,6 +38,7 @@ args = parser.parse_args()
 domain = args.domain
 channel = args.channel
 mac = args.mac
+arm = args.arm
 ignoreVersions = not args.dont_ignore_versions_after_parsed
 useDeployHistory = not args.no_deploy_history
 daemonSettings = {
@@ -54,6 +56,9 @@ if channel:
 if mac:
 	domain = f"{domain}mac/"
 	outputFolder = f"{outputFolder}mac/"
+	if arm:
+		domain = f"{domain}arm64/"
+		outputFolder = f"{outputFolder}arm64/"
 #--
 print(" * Setting up internal variables...")
 #--
