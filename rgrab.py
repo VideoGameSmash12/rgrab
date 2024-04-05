@@ -23,11 +23,12 @@ from concurrent.futures import ThreadPoolExecutor
 print(" * Reading command-line arguments (if any)...")
 #--
 parser = argparse.ArgumentParser(description = "Scrape Roblox's setup servers for client versions.")
-parser.add_argument("-d", "--domain", default = "https://setup.rbxcdn.com/", help = "Sets the domain that the script will grab versions from. Unless you're scraping something from LouBu, there is no need to set this.")
+parser.add_argument("-d", "--domain", default = "https://setup.rbxcdn.com/", help = "Sets the domain that the script will grab versions from. Unless you're scraping something from Loubu, there is no need to set this.")
 parser.add_argument("-c", "--channel", default = None, help = "Sets the channel that the script will grab versions from.")
 parser.add_argument("-mn", "--manual", action = 'store_true', default = False, help = "Attempts to query additional endpoints other than DeployHistory to find versions.")
 parser.add_argument("-me", "--manual_endpoint", default = "https://clientsettings.roblox.com/v2/client-version/", help = "Sets the domain that the script will find the latest clients with if using manual version grabbing.")
 parser.add_argument("-mle", "--manual_legacy_endpoints", action = 'store_true', default = False, help = "Additionally use legacy endpoints to find clients if using manual version grabbing.")
+parser.add_argument("-lb", "--luobu", action = 'store_true', default = False, help = "Additionally grabs the latest Luobu clients if using manual version grabbing.")
 parser.add_argument("-dhf", "--deploy_history_file", action = 'store', default = None, help = "If specified, reads the file with the same name as the DeployHistory instead of trying to get the latest one. Useful for getting clients from channels with previously wiped deploy histories.")
 parser.add_argument("-m", "--mac", action = 'store_true', default = False, help = "Scrape versions in a way that properly grabs Mac clients.")
 parser.add_argument("-arm", "--arm", action = 'store_true', default = False, help = "If Mac clients are being grabbed, only get the clients for the arm64 architecture.")
@@ -63,6 +64,7 @@ if mac:
 	if arm:
 		domain = f"{domain}arm64/"
 		outputFolder = f"{outputFolder}arm64/"
+luobu = args.luobu
 #--
 print(" * Setting up internal variables...")
 #--
@@ -214,6 +216,22 @@ def findVersions(domain):
 					
 					if ignoreVersions:
 						ignore.append(macPlayerVersion)
+			
+				# Special case for Luobu clients. We don't have a fallback for those clients and we just get them on top of the regular clients where possible. Failures are no big deal.
+				if luobu:
+					print(f" * Grabbing the latest known Luobu client as well...")
+					macStudioLBResponse = json.loads(session.get(f'{manualEndpoint}MacStudioCJV{f"/channel/{channel}" if channel else ""}').text)
+					
+					if "errors" in macStudioLBResponse:
+						print(f' ! Unable to grab latest Luobu version from the endpoint: {macStudioLBResponse["errors"][0]["message"]}')
+					else:
+						macStudioLBVersion = macStudioLBResponse["clientVersionUpload"]
+						if macStudioLBVersion not in ignore:
+							version = Version(macStudioLBVersion, "StudioCJV", macStudioLBVersion, "Unspecified")
+							versions.append(version)
+							
+							if ignoreVersions:
+								ignore.append(macStudioLBVersion)
 
 		# Guess not, we're grabbing Windows clients instead
 		else:
@@ -255,6 +273,33 @@ def findVersions(domain):
 					
 					if ignoreVersions:
 						ignore.append(winStudio64Version)
+				
+				# Special case for Luobu clients
+				if luobu:
+					print(f" * Grabbing the latest known Luobu client as well...")
+					winStudio64LBResponse = json.loads(session.get(f'{manualEndpoint}WindowsStudio64CJV{f"/channel/{channel}" if channel else ""}').text)
+					winStudioLegacyLBResponse = json.loads(session.get(f'{manualEndpoint}WindowsStudioCJV{f"/channel/{channel}" if channel else ""}').text)
+					
+					if "errors" in winStudio64LBResponse:
+						print(f' ! Unable to grab latest Luobu version from the endpoint: {winStudio64LBResponse["errors"][0]["message"]}')
+					else:
+						winStudio64LBVersion = winStudio64LBResponse["clientVersionUpload"]
+						winStudioLegacyLBVersion = winStudioLegacyLBResponse["clientVersionUpload"]
+
+						if winStudio64LBVersion not in ignore:
+							version = Version(winStudio64LBVersion, "StudioCJV", winStudio64LBVersion, "Unspecified")
+							versions.append(version)
+							
+							if ignoreVersions:
+								ignore.append(winStudio64LBVersion)
+
+						if winStudioLegacyLBVersion not in ignore:
+							version = Version(winStudioLegacyLBVersion, "StudioCJV", winStudioLegacyLBVersion, "Unspecified")
+							versions.append(version)
+							
+							if ignoreVersions:
+								ignore.append(winStudioLegacyLBVersion)
+
 
 		if fallback or manualLegacyEndpoints:
 			print(f" * Grabbing clients from fallback endpoints (may not be up to date)...")
