@@ -1,4 +1,4 @@
-# - rgrab v1.8 -
+# - rgrab v1.9 -
 # Written by videogamesm12
 
 print("                    _    ")
@@ -26,6 +26,8 @@ parser = argparse.ArgumentParser(description = "Scrape Roblox's setup servers fo
 parser.add_argument("-d", "--domain", default = "https://setup.rbxcdn.com/", help = "Sets the domain that the script will grab versions from. Unless you're scraping something from LouBu, there is no need to set this.")
 parser.add_argument("-c", "--channel", default = None, help = "Sets the channel that the script will grab versions from.")
 parser.add_argument("-mn", "--manual", action = 'store_true', default = False, help = "Attempts to query additional endpoints other than DeployHistory to find versions.")
+parser.add_argument("-me", "--manual_endpoint", default = "https://clientsettings.roblox.com/v2/client-version/", help = "Sets the domain that the script will find the latest clients with if using manual version grabbing.")
+parser.add_argument("-mle", "--manual_legacy_endpoints", action = 'store_true', default = False, help = "Additionally use legacy endpoints to find clients if using manual version grabbing.")
 parser.add_argument("-dhf", "--deploy_history_file", action = 'store', default = None, help = "If specified, reads the file with the same name as the DeployHistory instead of trying to get the latest one. Useful for getting clients from channels with previously wiped deploy histories.")
 parser.add_argument("-m", "--mac", action = 'store_true', default = False, help = "Scrape versions in a way that properly grabs Mac clients.")
 parser.add_argument("-arm", "--arm", action = 'store_true', default = False, help = "If Mac clients are being grabbed, only get the clients for the arm64 architecture.")
@@ -46,6 +48,8 @@ daemonSettings = {
 	"port": args.aria2c_port
 }
 manual = args.manual
+manualEndpoint = args.manual_endpoint
+manualLegacyEndpoints = args.manual_legacy_endpoints
 deployHistoryFile = args.deploy_history_file
 #--
 print(" * Applying command-line options (if any)...")
@@ -101,7 +105,7 @@ class Version:
 		meta = session.get(f"{domain}{self.id}-rbxPkgManifest.txt")
 		
 		if meta.status_code != 200:
-			print(f" - Meta grabbing for {self.id} (deployed at {self.deployDate}) failed")
+			print(f" ! Meta grabbing for {self.id} (deployed at {self.deployDate}) failed")
 			return None
 		else:
 			print(f" * Successfully grabbed meta for {self.id}, deployed at {self.deployDate}")
@@ -110,7 +114,7 @@ class Version:
 	
 	def queueForDownload(self):
 		if not self.verifyAvailability():
-			print(f" - Existence validation for {self.id} (deployed at {self.deployDate}) failed")
+			print(f" ! Existence validation for {self.id} (deployed at {self.deployDate}) failed")
 			return
 	
 		# Roblox stores Mac clients very differently compared to Windows clients.
@@ -145,7 +149,7 @@ def queueIfPresent(version):
 	try:
 		version.queueForDownload()
 	except Exception as ex:
-		print("FUCK", ex)
+		print(f" ! Failed to queue version {version.id} -", ex)
 #--
 def findVersions(domain):
 	print(" STAGE 1 - FINDING VERSIONS")
@@ -173,44 +177,120 @@ def findVersions(domain):
 				if ignoreVersions:
 					ignore.append(match.group(2))
 	
-	# TODO: Improve this later
+	# TODO: Really improve this later
 	if manual:
-		print(f" * Grabbing the latest version of the game by checking endpoints...")
-		
+		print(f" * Grabbing the latest known version of the game by checking endpoints...")
+
+		# Declaring this for later
+		fallback = False
+
+		# Are we grabbing Mac clients?
 		if mac:
-			studioVersion = session.get(f"{domain}versionStudio").text
-			if "version-" in studioVersion and studioVersion not in ignore:
-				version = Version(studioVersion, "Studio", studioVersion, "Unspecified")
-				versions.append(version)
-				
-				if ignoreVersions:
-					ignore.append(studioVersion)
+			macPlayerResponse = json.loads(session.get(f'{manualEndpoint}MacPlayer{f"/channel/{channel}" if channel else ""}').text)
+			macStudioResponse = json.loads(session.get(f'{manualEndpoint}MacStudio{f"/channel/{channel}" if channel else ""}').text)
 			
-			playerVersion = session.get(f"{domain}version").text
-			if "version-" in playerVersion and playerVersion not in ignore:
-				version = Version(playerVersion, "Client", playerVersion, "Unspecified")
-				versions.append(version)
-				
-				if ignoreVersions:
-					ignore.append(playerVersion)
+			# Did an error occur while trying to grab the clients?
+			if "errors" in macPlayerResponse or "errors" in macStudioResponse:
+				print(f' ! Unable to grab latest version from the default endpoint: {macPlayerResponse["errors"][0]["message"]}')
 			
+				# Fallback to the older endpoints if possible
+				fallback = True
+			else:
+				macPlayerVersion = macPlayerResponse["clientVersionUpload"]
+				macStudioVersion = macStudioResponse["clientVersionUpload"]
+				
+				# Studio
+				if macStudioVersion not in ignore:
+					version = Version(macStudioVersion, "Studio", macStudioVersion, "Unspecified")
+					versions.append(version)
+					
+					if ignoreVersions:
+						ignore.append(macStudioVersion)
+				
+				# Client
+				if macPlayerVersion not in ignore:
+					version = Version(macPlayerVersion, "Client", macPlayerVersion, "Unspecified")
+					versions.append(version)
+					
+					if ignoreVersions:
+						ignore.append(macPlayerVersion)
+
+		# Guess not, we're grabbing Windows clients instead
 		else:
-			studio64Version = session.get(f"{domain}versionQTStudio").text
-			if "version-" in studio64Version and studio64Version not in ignore:
-				version = Version(studio64Version, "Studio64", studio64Version, "Unspecified")
-				versions.append(version)
-				
-				if ignoreVersions:
-					ignore.append(studio64Version)
+			winPlayerResponse = json.loads(session.get(f'{manualEndpoint}WindowsPlayer{f"/channel/{channel}" if channel else ""}').text)
+			winStudioLegacyResponse = json.loads(session.get(f'{manualEndpoint}WindowsStudio{f"/channel/{channel}" if channel else ""}').text) # Legacy, not updated anymore but still included anyways
+			winStudio64Response = json.loads(session.get(f'{manualEndpoint}WindowsStudio64{f"/channel/{channel}" if channel else ""}').text)
 			
-			playerVersion = session.get(f"{domain}version").text
-			if "version-" in playerVersion and playerVersion not in ignore:
-				version = Version(playerVersion, "WindowsPlayer", playerVersion, "Unspecified")
-				versions.append(version)
+			# Did an error occur while trying to grab the clients?
+			if "errors" in winPlayerResponse or "errors" in winStudioLegacyResponse or "errors" in winStudio64Response:
+				print(f' * Unable to grab latest version from the default endpoint: {winPlayerResponse["errors"][0]["message"]}')
+			
+				# Fallback to the older endpoints if possible
+				fallback = True
+			else:
+				winPlayerVersion = winPlayerResponse["clientVersionUpload"]
+				winStudioLegacyVersion = winStudioLegacyResponse["clientVersionUpload"]
+				winStudio64Version = winStudio64Response["clientVersionUpload"]
+
+				# WindowsPlayer
+				if winPlayerVersion not in ignore:
+					version = Version(winPlayerVersion, "WindowsPlayer", winPlayerVersion, "Unspecified")
+					versions.append(version)
+					
+					if ignoreVersions:
+						ignore.append(winPlayerVersion)
 				
-				if ignoreVersions:
-					ignore.append(playerVersion)
-	
+				# Studio (legacy)
+				if winStudioLegacyVersion not in ignore:
+					version = Version(winStudioLegacyVersion, "Studio", winStudioLegacyVersion, "Unspecified")
+					versions.append(version)
+					
+					if ignoreVersions:
+						ignore.append(winStudioLegacyVersion)
+				
+				# Studio64
+				if winStudio64Version not in ignore:
+					version = Version(winStudio64Version, "Studio64", winStudio64Version, "Unspecified")
+					versions.append(version)
+					
+					if ignoreVersions:
+						ignore.append(winStudio64Version)
+
+		if fallback or manualLegacyEndpoints:
+			print(f" * Grabbing clients from fallback endpoints (may not be up to date)...")
+			if mac:
+				studioVersion = session.get(f"{domain}versionStudio").text
+				if "version-" in studioVersion and studioVersion not in ignore:
+					version = Version(studioVersion, "Studio", studioVersion, "Unspecified")
+					versions.append(version)
+					
+					if ignoreVersions:
+						ignore.append(studioVersion)
+				
+				playerVersion = session.get(f"{domain}version").text
+				if "version-" in playerVersion and playerVersion not in ignore:
+					version = Version(playerVersion, "Client", playerVersion, "Unspecified")
+					versions.append(version)
+					
+					if ignoreVersions:
+						ignore.append(playerVersion)
+			else:
+				studio64Version = session.get(f"{domain}versionQTStudio").text
+				if "version-" in studio64Version and studio64Version not in ignore:
+					version = Version(studio64Version, "Studio64", studio64Version, "Unspecified")
+					versions.append(version)
+					
+					if ignoreVersions:
+						ignore.append(studio64Version)
+				
+				playerVersion = session.get(f"{domain}version").text
+				if "version-" in playerVersion and playerVersion not in ignore:
+					version = Version(playerVersion, "WindowsPlayer", playerVersion, "Unspecified")
+					versions.append(version)
+					
+					if ignoreVersions:
+						ignore.append(playerVersion)
+
 	if ignoreVersions:
 		saveIgnore()
 	
@@ -230,8 +310,8 @@ def loadIgnore():
 		with open("ignore.json", "r") as ignoreList:
 			ignore.extend(json.loads(ignoreList.read()))
 	except Exception as ex:
-		print(" - Failed to load blacklist!")
-		print(" - Details:", ex)
+		print(" ! Failed to load blacklist!")
+		print(" ! Details:", ex)
 
 def saveIgnore():
 	print(" * Saving new version blacklist...")
@@ -240,8 +320,8 @@ def saveIgnore():
 			json.dump(ignore, newList)
 		print(" * Blacklist saved.")
 	except Exception as ex:
-		print(" - Failed to save blacklist!")
-		print(" - Details:", ex)
+		print(" ! Failed to save blacklist!")
+		print(" ! Details:", ex)
 #--
 if os.path.exists("ignore.json"):
 	loadIgnore()
